@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pick Path Simulator — Kaggadaspura v3</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'IBM Plex Mono',monospace;background:#f4f5f7;color:#1a2035;height:100vh;overflow:hidden;}
+:root{
+  --accent:#e85d04;--accent2:#0077b6;--green:#2d6a4f;--purple:#5e35b1;--red:#c62828;
+  --surface:#fff;--surface2:#f4f5f7;--surface3:#e8eaed;
+  --border:#d1d5db;--border2:#9ca3af;--text:#1a2035;--muted:#6b7280;--muted2:#9ca3af;
+  --fnv:#1b5e20;--fnv-bg:#e8f5e9;--chl:#0d47a1;--chl-bg:#e3f2fd;
+  --fzr:#4a148c;--fzr-bg:#f3e5f5;--hd:#e65100;--hd-bg:#fff3e0;--amb:#37474f;--amb-bg:#eceff1;
+}
+.app{display:grid;grid-template-columns:260px 1fr 280px;height:100vh;overflow:hidden;}
+
+/* LEFT */
+.left{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.left-head{padding:14px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.brand{font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--accent);letter-spacing:2px;text-transform:uppercase;}
+.sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.pod-tag{display:inline-block;font-size:9px;padding:2px 7px;border-radius:3px;background:#fff8f5;color:var(--accent);border:1px solid #fbd5c0;margin-top:5px;}
+.orders-list{flex:1;overflow-y:auto;padding:8px;}
+.orders-list::-webkit-scrollbar{width:3px;}
+.orders-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.ocard{padding:9px 11px;border-radius:7px;margin-bottom:5px;cursor:pointer;border:1px solid transparent;transition:all .12s;}
+.ocard:hover{background:var(--surface2);border-color:var(--border);}
+.ocard.active{background:#fff5f0;border-color:var(--accent);}
+.oid{font-size:10px;font-weight:500;color:var(--text);}
+.ometa{display:flex;gap:5px;margin-top:4px;align-items:center;flex-wrap:wrap;}
+.tag{font-size:8px;padding:1px 6px;border-radius:3px;font-weight:500;}
+.tx{font-size:9px;color:var(--muted);}
+.tXL{background:#fce4ec;color:#880e4f;}.tLARGE{background:#fff3e0;color:#e65100;}
+.tMED{background:#e3f2fd;color:#0d47a1;}.tSMALL{background:#e8f5e9;color:#1b5e20;}.tTINY{background:#ecfdf5;color:#065f46;}.tMED{background:#e3f2fd;color:#0d47a1;}
+.controls{padding:12px;border-top:1px solid var(--border);flex-shrink:0;}
+.clabel{font-size:10px;color:var(--muted);margin-bottom:3px;display:flex;justify-content:space-between;}
+.clabel span{color:var(--accent);font-weight:500;}
+.crow{margin-bottom:9px;}
+input[type=range]{width:100%;height:3px;accent-color:var(--accent);cursor:pointer;}
+.btn{width:100%;padding:8px;border-radius:6px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500;cursor:pointer;border:1px solid transparent;transition:all .12s;margin-bottom:5px;letter-spacing:.5px;}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover{background:#d44f00;}
+.view-row{display:flex;gap:4px;margin-bottom:5px;}
+.vtog{flex:1;padding:5px 3px;border-radius:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);text-align:center;transition:all .12s;}
+.vtog:hover{border-color:var(--border2);}
+.vtog.on-o{background:#fff5f0;color:var(--accent);border-color:var(--accent);}
+.vtog.on-p{background:#f5f0ff;color:var(--purple);border-color:var(--purple);}
+.vtog.on-g{background:#f0faf4;color:var(--green);border-color:var(--green);}
+.vtog.on-b{background:#f0f8ff;color:var(--accent2);border-color:var(--accent2);}
+.vtog.on-y{background:#fffbeb;color:#b45309;border-color:#d97706;}
+
+/* CENTER */
+.center{position:relative;overflow:hidden;background:#f8f9fa;display:flex;flex-direction:column;}
+#floorSvg{width:100%;height:100%;}
+.legend{position:absolute;bottom:10px;left:10px;background:rgba(255,255,255,.96);border:1px solid var(--border);border-radius:7px;padding:8px 10px;font-size:9px;}
+.leg-title{font-size:8px;letter-spacing:2px;color:var(--muted);margin-bottom:5px;text-transform:uppercase;}
+.leg-row{display:flex;align-items:center;gap:7px;color:var(--muted);margin-bottom:3px;}
+.leg-row:last-child{margin-bottom:0;}
+.lline{width:18px;height:0;border-top:2px dashed;}
+.ldot{width:8px;height:8px;border-radius:50%;}
+.map-label{position:absolute;top:8px;right:10px;font-size:9px;color:var(--muted);background:rgba(255,255,255,.9);padding:3px 8px;border-radius:4px;border:1px solid var(--border);}
+
+/* STEP CONTROLS */
+.step-bar{position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,.96);border:1px solid var(--border);border-radius:7px;padding:8px 10px;display:none;flex-direction:column;gap:5px;min-width:160px;}
+.step-bar.visible{display:flex;}
+.step-info{font-size:9px;color:var(--text);font-weight:500;}
+.step-detail{font-size:8px;color:var(--muted);}
+.step-btns{display:flex;gap:4px;}
+.sbtn{flex:1;padding:5px;border-radius:5px;font-family:'IBM Plex Mono',monospace;font-size:9px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all .12s;}
+.sbtn:hover{background:var(--surface2);}
+.sbtn.sprimary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.step-prog{height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;}
+.step-prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;}
+
+/* RIGHT */
+.right{background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.msec{padding:13px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.slabel{font-size:8px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.mcard{background:var(--surface2);border-radius:6px;padding:9px;border:1px solid var(--border);}
+.mval{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;color:var(--muted2);}
+.mval.blue{color:var(--accent2);}.mval.orange{color:var(--accent);}
+.mval.green{color:var(--green);}.mval.red{color:var(--red);}
+.mname{font-size:8px;color:var(--muted);margin-top:2px;}
+.effbar{height:4px;background:var(--surface3);border-radius:2px;margin:8px 0 3px;overflow:hidden;}
+.effbar-fill{height:100%;border-radius:2px;background:var(--green);transition:width .5s;}
+.eff-label{font-size:9px;color:var(--muted);display:flex;justify-content:space-between;}
+.distrow{display:flex;gap:6px;margin-top:8px;}
+.dcard{flex:1;background:var(--surface2);border-radius:5px;padding:6px;text-align:center;border:1px solid var(--border);}
+.dval{font-size:13px;font-weight:600;}
+.dlbl{font-size:8px;color:var(--muted);margin-top:1px;}
+.timebar{margin-top:8px;}
+.trow{display:flex;justify-content:space-between;font-size:9px;color:var(--muted2);margin-bottom:2px;}
+.trow span:last-child{color:var(--text);}
+.ttrack{height:3px;background:var(--surface3);border-radius:2px;margin-bottom:6px;overflow:hidden;}
+.tfill{height:100%;border-radius:2px;transition:width .4s;}
+.stops-sec{padding:13px;flex:1;overflow-y:auto;}
+.stops-sec::-webkit-scrollbar{width:3px;}
+.stops-sec::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.stop-item{display:flex;gap:8px;margin-bottom:9px;border-radius:6px;padding:4px 6px;transition:background .15s;}
+.stop-item.active-step{background:#fff5f0;border:1px solid var(--accent);}
+.stop-item.done-step{opacity:0.5;}
+.snum{width:20px;height:20px;border-radius:50%;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--accent);color:#fff;}
+.snum.ret{background:var(--purple);}
+.snum.done{background:#d1d5db;color:#6b7280;}
+.sbody{flex:1;min-width:0;}
+.sloc{font-size:11px;font-weight:500;color:var(--text);}
+.sdet{font-size:9px;color:var(--muted);margin-top:1px;}
+.sdist{font-size:9px;color:var(--muted2);}
+.zbadge{display:inline-block;font-size:7px;padding:1px 4px;border-radius:2px;margin-left:3px;vertical-align:middle;}
+.zAMB{background:var(--amb-bg);color:var(--amb);}.zFNV{background:var(--fnv-bg);color:var(--fnv);}
+.zCHL{background:var(--chl-bg);color:var(--chl);}.zFZR{background:var(--fzr-bg);color:var(--fzr);}
+.zHD{background:var(--hd-bg);color:var(--hd);}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100px;color:var(--muted2);font-size:10px;text-align:center;gap:4px;}
+.empty .ei{font-size:24px;opacity:.2;}
+.unlocated-note{font-size:9px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:5px;padding:5px 8px;margin-top:6px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- LEFT -->
+<div class="left">
+  <div class="left-head">
+    <div class="brand">Pick Path Sim</div>
+    <div class="sub">Kaggadaspura · Bangalore · 3969 sqft</div>
+    <div class="pod-tag">Store 1393563 · 264 racks · Verified order data</div>
+  </div>
+  <div class="orders-list" id="ordersList"></div>
+  <div class="controls">
+    <div class="crow">
+      <div class="clabel">Picker speed <span id="spdV">6.5</span> km/h</div>
+      <input type="range" id="spdR" min="3" max="10" step="0.5" value="6.5">
+    </div>
+    <div class="crow">
+      <div class="clabel">Pick time/stop <span id="pckV">8</span> s</div>
+      <input type="range" id="pckR" min="3" max="30" step="1" value="8">
+    </div>
+    <div class="crow">
+      <div class="clabel">Pack time <span id="pakV">60</span> s</div>
+      <input type="range" id="pakR" min="20" max="120" step="5" value="60">
+    </div>
+    <button class="btn btn-primary" id="simBtn">▶ SIMULATE ALL STEPS</button>
+    <div style="font-size:9px;color:var(--muted);margin-bottom:5px;letter-spacing:1px;">LAYERS</div>
+    <div class="view-row">
+      <div class="vtog on-o" id="togPick" onclick="toggleLayer('pick','on-o',this)">Pick path</div>
+      <div class="vtog on-p" id="togRet"  onclick="toggleLayer('ret','on-p',this)">Return</div>
+      <div class="vtog on-g" id="togOpt"  onclick="toggleLayer('opt','on-g',this)">Optimal</div>
+    </div>
+    <div class="view-row">
+      <div class="vtog on-b" id="togDots" onclick="toggleLayer('dots','on-b',this)">Dots</div>
+      <div class="vtog"      id="togBack" onclick="toggleLayer('back','on-y',this)">Backtracks</div>
+      <div class="vtog on-b" id="togStep" onclick="toggleStepMode()">Step mode</div>
+    </div>
+  </div>
+</div>
+
+<!-- CENTER -->
+<div class="center">
+  <svg id="floorSvg" viewBox="0 0 630 630" preserveAspectRatio="xMidYMid meet"></svg>
+  <div class="legend">
+    <div class="leg-title">Legend</div>
+    <div class="leg-row"><div class="lline" style="border-color:#e85d04"></div> Rank path</div>
+    <div class="leg-row"><div class="lline" style="border-color:#5e35b1"></div> Return leg</div>
+    <div class="leg-row"><div class="lline" style="border-color:#2d6a4f"></div> Optimal</div>
+    <div class="leg-row"><div class="ldot" style="background:#2d6a4f;border:2px solid #14532d"></div> Start (Packaging)</div>
+    <div class="leg-row"><div class="ldot" style="background:#c62828;border:2px solid #7f0000"></div> End (Pigeon Rack)</div>
+    <div class="leg-row"><div class="ldot" style="background:#e85d04"></div> Pick stop</div>
+  </div>
+  <div class="map-label">Kaggadaspura · 63×63 ft · Apr 2026</div>
+  <!-- STEP MODE CONTROLS -->
+  <div class="step-bar" id="stepBar">
+    <div class="step-info" id="stepInfo">Step 0 / 0</div>
+    <div class="step-detail" id="stepDetail">—</div>
+    <div class="step-prog"><div class="step-prog-fill" id="stepProg" style="width:0%"></div></div>
+    <div class="step-btns">
+      <div class="sbtn" onclick="stepNav(-1)">◀ Prev</div>
+      <div class="sbtn sprimary" onclick="stepNav(1)">Next ▶</div>
+    </div>
+    <div class="sbtn" style="text-align:center" onclick="stepReset()">↺ Reset</div>
+  </div>
+</div>
+
+<!-- RIGHT -->
+<div class="right">
+  <div class="msec">
+    <div class="slabel">Metrics</div>
+    <div class="mgrid">
+      <div class="mcard"><div class="mval" id="mDist">—</div><div class="mname">distance (m)</div></div>
+      <div class="mcard"><div class="mval" id="mEff">—</div><div class="mname">efficiency %</div></div>
+      <div class="mcard"><div class="mval" id="mTime">—</div><div class="mname">total time (min)</div></div>
+      <div class="mcard"><div class="mval" id="mBack">—</div><div class="mname">backtracks</div></div>
+    </div>
+    <div class="effbar"><div class="effbar-fill" id="effFill" style="width:0%"></div></div>
+    <div class="eff-label"><span>Path efficiency</span><span id="effLbl">—</span></div>
+    <div class="distrow" id="distRow" style="display:none">
+      <div class="dcard"><div class="dval" style="color:var(--accent)" id="dAct">—</div><div class="dlbl">actual (m)</div></div>
+      <div class="dcard"><div class="dval" style="color:var(--green)" id="dOpt">—</div><div class="dlbl">optimal (m)</div></div>
+      <div class="dcard"><div class="dval" style="color:var(--red)" id="dWst">—</div><div class="dlbl">wasted (m)</div></div>
+    </div>
+    <div class="timebar" id="timebar"></div>
+  </div>
+  <div class="stops-sec">
+    <div class="slabel">Pick sequence</div>
+    <div id="stopsList"><div class="empty"><div class="ei">◈</div><div>Select an order → Simulate</div></div></div>
+  </div>
+</div>
+
+</div>
+
+<script>
+const FU=10,SVG=630;
+function fx(v){return v*FU;} function fy(v){return SVG-v*FU;}
+
+// ── LAYOUT ────────────────────────────────────────────────────────────────────
+const AX={A:55,B:49,C:51,D:45,E:47,F:41,G:43,H:37,I:39,J:33,K:35,L:29,M:31,N:25,
+          P:22,Q:20,HVD:53,HVL:38,DBE:59,Z:60};
+const FNV_COLS=[4,8,12,16];
+function fnvX(r){return FNV_COLS[(r-1)%4];}
+function fnvY(r){return 14+(r-1)*1.8;}
+function chlY(r){return 54+(r-1)*0.5;}
+function fzrY(r){return 59+(r-1)*0.5;}
+function ambY(r){return 14+(r-1)*2.5;}
+function oRowX(r){return 25+(r-1)*3;}
+const START={x:29,y:8},END={x:48,y:10};
+const MAIN_CORR=22;
+
+function shelfPos(loc){
+  const p=loc.split('-');if(p.length<2)return null;
+  const aisle=p[0],rack=parseInt(p[1])||1;
+  if(aisle==='FNV')return{x:fnvX(rack),y:fnvY(rack)};
+  if(aisle==='CHL')return{x:8,y:chlY(rack)};
+  if(aisle==='FZR')return{x:8,y:fzrY(rack)};
+  if(aisle==='O')  return{x:oRowX(rack),y:60};
+  if(aisle==='HDR')return{x:22,y:30+(rack-1)*3};
+  if(aisle==='HVD')return{x:53,y:20+(rack-1)*2};
+  if(aisle==='HVL')return{x:38,y:15+(rack-1)*2};
+  if(aisle==='DBE')return{x:59,y:16+(rack-1)*8};
+  const ax=AX[aisle];if(!ax)return null;
+  return{x:ax,y:ambY(rack)};
+}
+
+function routePath(from,to){
+  const pts=[from];
+  const fW=from.x<20,tW=to.x<20;
+  if(fW&&tW){
+    pts.push({x:2,y:from.y});pts.push({x:2,y:to.y});
+  } else if(!fW&&!tW){
+    if(Math.abs(from.x-to.x)>3){
+      pts.push({x:to.x,y:from.y});
+    }
+  } else {
+    if(fW){pts.push({x:2,y:from.y});pts.push({x:MAIN_CORR,y:from.y});pts.push({x:MAIN_CORR,y:to.y});}
+    else  {pts.push({x:MAIN_CORR,y:from.y});pts.push({x:MAIN_CORR,y:to.y});pts.push({x:2,y:to.y});}
+  }
+  pts.push(to);return pts;
+}
+
+function hypot(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+function pDist(pts){let d=0;for(let i=1;i<pts.length;i++)d+=hypot(pts[i-1],pts[i]);return d;}
+const FT_M=0.3048;
+
+function routeOrder(items,spd,pck,pak){
+  let stops=[],totalFt=0,backs=0,cur=START;
+  for(const it of items){
+    const pos=shelfPos(it.loc);if(!pos)continue;
+    const wp=routePath(cur,pos),seg=pDist(wp);
+    totalFt+=seg;
+    if(stops.length>0&&pos.y<stops[stops.length-1].pos.y-3)backs++;
+    stops.push({...it,pos,waypoints:wp,segFt:seg});cur=pos;
+  }
+  const retWp=routePath(cur,END),retFt=pDist(retWp);totalFt+=retFt;
+  let rem=stops.map(s=>s.pos),optFt=0,optCur=START;
+  while(rem.length){
+    const best=rem.reduce((b,p)=>hypot(optCur,p)<hypot(optCur,b)?p:b,rem[0]);
+    optFt+=pDist(routePath(optCur,best));optCur=best;rem=rem.filter(p=>p!==best);
+  }
+  optFt+=pDist(routePath(optCur,END));
+  const tM=+(totalFt*FT_M).toFixed(1),oM=+(optFt*FT_M).toFixed(1);
+  const spMs=spd*1000/3600,wS=tM/spMs,tS=wS+stops.length*pck+pak;
+  return{stops,retWaypoints:retWp,retFt,totalM:tM,optM:oM,
+    eff:Math.min(100,Math.round(oM/tM*100)),backtracks:backs,
+    walkS:Math.round(wS),pickS_t:Math.round(stops.length*pck),
+    packS:Math.round(pak),totalS:Math.round(tS)};
+}
+
+// ── SVG HELPERS ───────────────────────────────────────────────────────────────
+function R(x,y,w,h,fill,stroke,sw,rx,op){
+  return`<rect x="${fx(x)}" y="${fy(y+h)}" width="${fx(w)}" height="${fx(h)}" fill="${fill}" stroke="${stroke||'none'}" stroke-width="${sw||0}" rx="${rx||0}" opacity="${op||1}"/>`;
+}
+function L(x1,y1,x2,y2,s,sw,dash){
+  return`<line x1="${fx(x1)}" y1="${fy(y1)}" x2="${fx(x2)}" y2="${fy(y2)}" stroke="${s}" stroke-width="${sw}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+}
+function T(x,y,t,fs,fill,anc,fw){
+  return`<text x="${fx(x)}" y="${fy(y)}" font-size="${fs}" fill="${fill}" text-anchor="${anc||'middle'}" font-weight="${fw||'400'}" font-family="IBM Plex Mono,monospace">${t}</text>`;
+}
+function RT(x,y,t,fs,fill,ang){
+  return`<text x="${fx(x)}" y="${fy(y)}" font-size="${fs}" fill="${fill}" text-anchor="middle" font-family="IBM Plex Mono,monospace" transform="rotate(${ang},${fx(x)},${fy(y)})">${t}</text>`;
+}
+function poly(pts,stroke,sw,dash){
+  const d=pts.map((p,i)=>`${i?'L':'M'}${fx(p.x).toFixed(1)},${fy(p.y).toFixed(1)}`).join(' ');
+  return`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${sw}" ${dash?`stroke-dasharray="${dash}"`:''}/>`;
+}
+function circ(x,y,r,fill,stroke,sw){
+  return`<circle cx="${fx(x)}" cy="${fy(y)}" r="${r}" fill="${fill}" stroke="${stroke||'none'}" stroke-width="${sw||0}"/>`;
+}
+
+// ── FLOOR PLAN ────────────────────────────────────────────────────────────────
+function drawFloor(){
+  let s='';
+  s+=R(0,0,63,63,'#f0f4f8','#94a3b8',1.5);
+  s+=R(0,0,63,14,'#fafafa','#e2e8f0',0.5);
+  s+=R(0,0,63,1,'#e2e8f0');
+  s+=T(31,0.6,'ROLLING SHUTTER',6,'#94a3b8');
+  s+=R(0,1,30,4,'#f8fafc','#e2e8f0',0.4,2);
+  s+=T(15,3.2,'DE WAITING AREA',6,'#94a3b8');
+  s+=R(28,5,12,7,'#dcfce7','#16a34a',0.6,2);
+  s+=T(34,8.5,'GREEN INWARDING',5.5,'#15803d','middle','500');
+  s+=T(34,7,'38 sqft',5,'#166534');
+  s+=R(26,5,2,5,'#fee2e2','#dc2626',0.5,2);
+  s+=T(27,8,'RED',5,'#dc2626');
+  s+=R(40,5,8,7,'#fff7ed','#ea580c',0.5,2);
+  s+=T(44,8.5,'ORANGE',5.5,'#ea580c');s+=T(44,7,'15 sqft',5,'#c2410c');
+  s+=R(48,5,15,8,'#eff6ff','#3b82f6',0.5,2);
+  s+=T(55.5,9,'RECEIVING',5.5,'#1d4ed8','middle','500');s+=T(55.5,7.5,'190 sqft',5,'#2563eb');
+  s+=R(24,5,8,7,'#fdf4ff','#a855f7',0.6,2);
+  s+=T(28,9,'PACKAGING',6,'#7e22ce','middle','500');s+=T(28,7,'TABLE',5,'#9333ea');
+  for(let i=0;i<5;i++){s+=R(38+i*4,7,3,5,'#fffbeb','#d97706',0.5,1);s+=T(39.5+i*4,9.5,'PIGEON',4.5,'#b45309');}
+  s+=T(48,6,'PIGEON RACKS ×5',5,'#92400e');
+  s+=R(8,5,6,6,'#f0f9ff','#38bdf8',0.4,1);s+=T(11,8,'CHILLER',5,'#0369a1');
+  s+=R(14,5,4,6,'#fafafa','#94a3b8',0.3,1);s+=T(16,8,'FREEZER',5,'#64748b');
+  s+=R(18,5,4,6,'#f0f9ff','#38bdf8',0.3,1);s+=T(20,8,'MILK',5,'#0369a1');
+  s+=R(20,14,4,45,'#e0f2fe','#7dd3fc',0.5,0,0.6);
+  s+=RT(22,36,'MAIN CORRIDOR',5.5,'#0369a1',-90);
+  s+=R(0,14,2,49,'#f0fdf4',undefined,0,0,0.4);
+  s+=R(2,14,18,34,'#f0fdf4','#86efac',0.5,0,0.6);
+  s+=T(11,47.5,'FNV — Fruits & Vegetables (FNV1–FNV38)',5.5,'#166534','middle','500');
+  FNV_COLS.forEach(cx=>{s+=R(cx-0.7,14,1.4,34,'#dcfce7','#4ade80',0.3,0,0.8);});
+  s+=L(6,14,6,48,'#86efac',0.3,'3,3');s+=L(10,14,10,48,'#86efac',0.3,'3,3');s+=L(14,14,14,48,'#86efac',0.3,'3,3');
+  for(let r=1;r<=38;r+=6)s+=T(fnvX(r)+1.5,fnvY(r),`FNV${r}`,4,'#166534','start');
+  s+=R(2,48,18,6,'#ccfbf1','#2dd4bf',0.7,0,0.8);
+  s+=T(11,50.5,'AC ZONE — 235 sqft',5.5,'#0f766e','middle','500');
+  s+=R(2,54,12,5,'#eff6ff','#3b82f6',0.8,0,0.9);
+  s+=T(8,56.5,'CHILLER 2–5°C',6,'#1d4ed8','middle','500');s+=T(8,55.2,'130sqft · CHL1–11',5,'#2563eb');
+  s+=R(2,59,12,4,'#f5f3ff','#8b5cf6',0.8,0,0.9);
+  s+=T(8,61,'FREEZER −18°C',6,'#6d28d9','middle','500');s+=T(8,60,'108sqft · FZR1–9',5,'#7c3aed');
+  s+=R(14,54,6,9,'#fdf4ff','#c026d3',0.4,0,0.7);
+  s+=T(17,57,'COLD',5,'#86198f');s+=T(17,56,'EQUIP',5,'#86198f');
+  s+=R(20,30,4,24,'#fff7ed','#f97316',0.4,0,0.7);
+  s+=RT(22,42,'HDR RACKS',5,'#c2410c',-90);
+  const PAIRS=[{n:'N/O',xl:24,xr:28,ml:25,mr:27},{n:'L/M',xl:28,xr:32,ml:29,mr:31},
+    {n:'J/K',xl:32,xr:36,ml:33,mr:35},{n:'H/I',xl:36,xr:40,ml:37,mr:39},
+    {n:'F/G',xl:40,xr:44,ml:41,mr:43},{n:'D/E',xl:44,xr:48,ml:45,mr:47},{n:'B/C',xl:48,xr:52,ml:49,mr:51}];
+  PAIRS.forEach((p,i)=>{
+    s+=R(p.xl,14,p.xr-p.xl,46,i%2===0?'#f8fafc':'#f1f5f9',undefined,0,0,0.8);
+    s+=R(p.ml-0.5,14,1,46,'#dbeafe','#93c5fd',0.3);s+=R(p.mr-0.5,14,1,46,'#dbeafe','#93c5fd',0.3);
+    s+=T((p.ml+p.mr)/2,14.8,p.n,5,'#64748b');
+  });
+  s+=R(54.5,14,1,46,'#fef3c7','#fbbf24',0.5);s+=T(55,14.8,'A',5.5,'#92400e','middle','600');
+  s+=R(57,14,4,24,'#fdf4ff','#c026d3',0.3,0,0.5);s+=T(59,15,'DBE',5,'#86198f');
+  s+=R(61,14,2,46,'#f8fafc',undefined,0,0,0.3);
+  s+=RT(62,37,'EAST PERIMETER',5,'#cbd5e1',-90);
+  for(let r=1;r<=21;r++){
+    const y=ambY(r);s+=L(24,y,63,y,'#e2e8f0',0.4);
+    if(r%5===1)s+=T(63.5,y,`${r}`,4,'#94a3b8','start');
+  }
+  for(let r=1;r<=20;r++)s+=L(2,fnvY(r),20,fnvY(r),'#bbf7d0',0.3);
+  s+=R(24,59,38,4,'#f8fafc','#e2e8f0',0.4);
+  for(let r=1;r<=10;r++){
+    s+=R(oRowX(r)-1,59.5,2,1,'#dbeafe','#93c5fd',0.3,1);
+    s+=T(oRowX(r),60,'O'+r,4.5,'#1d4ed8');
+  }
+  s+=T(38,62,'O-ROW (E-W)',5,'#64748b');
+  s+=R(48,59,7,4,'#f8fafc','#e2e8f0',0.5,2);s+=T(51.5,61,'TOILET 2',5,'#6b7280');
+  s+=R(55,59,8,4,'#f8fafc','#e2e8f0',0.5,2);s+=T(59,61,'TOILET 1',5,'#6b7280');
+  s+=T(32,61,'SECURITY · EPANEL',5,'#9ca3af');
+  s+=R(0,0,63,63,'none','#475569',1.5);
+  return s;
+}
+
+// ── PATH DRAWING ──────────────────────────────────────────────────────────────
+function drawPaths(result,layers,activeStep){
+  let s='';if(!result)return s;
+  const n=result.stops.length;
+  const showUpTo = (activeStep===-1) ? n : activeStep; // -1 = show all
+
+  // Build waypoints up to showUpTo
+  let pathPts=[START];
+  for(let i=0;i<Math.min(showUpTo,n);i++){
+    const wp=result.stops[i].waypoints;
+    pathPts.push(...wp.slice(1));
+  }
+
+  if(layers.pick && pathPts.length>1){
+    // Draw completed segments in solid, current in dashed
+    const solidPts=pathPts;
+    s+=poly(solidPts,'#e85d04',2.2,'7,3');
+  }
+
+  // Return leg only when all stops visited
+  if(layers.ret && showUpTo>=n && result.retWaypoints&&result.retWaypoints.length>1)
+    s+=poly(result.retWaypoints,'#5e35b1',1.8,'5,4');
+
+  // Optimal
+  if(layers.opt && result.stops.length>1 && showUpTo>=n){
+    const sorted=[...result.stops].sort((a,b)=>hypot(START,a.pos)-hypot(START,b.pos));
+    const optPts=[START,...sorted.map(x=>x.pos),END];
+    const optWp=[];
+    for(let i=1;i<optPts.length;i++){const wp=routePath(optPts[i-1],optPts[i]);optWp.push(...(i===1?wp:wp.slice(1)));}
+    s+=poly(optWp,'#2d6a4f',1.5,'5,5');
+  }
+
+  // Backtrack markers
+  if(layers.back){
+    for(let i=1;i<=Math.min(showUpTo,n)-1;i++){
+      const prev=result.stops[i-1].pos,cur=result.stops[i].pos;
+      if(prev.y-cur.y>3){
+        const mx=(prev.x+cur.x)/2,my=(prev.y+cur.y)/2;
+        s+=circ(mx,my,5,'#fef08a','#ca8a04',1.5);
+        s+=T(mx,my+1.5,'↩',6,'#92400e');
+      }
+    }
+  }
+
+  // Pick dots — visited stops
+  if(layers.dots){
+    for(let i=0;i<Math.min(showUpTo,n);i++){
+      const st=result.stops[i];if(!st.pos)continue;
+      const isActive=(activeStep!==-1 && i===activeStep-1);
+      const col=isActive?'#e85d04':'#f97316';
+      const r=isActive?7:5;
+      s+=circ(st.pos.x,st.pos.y,r,col,'#7f1d1d',isActive?2:1);
+      // NUMBER LABEL — black text on white pill background for readability
+      const lx=fx(st.pos.x),ly=fy(st.pos.y);
+      const num=String(i+1);
+      const pw=num.length>1?10:8;
+      s+=`<rect x="${lx-pw/2}" y="${ly-5.5}" width="${pw}" height="9" rx="3" fill="white" opacity="0.9"/>`;
+      s+=`<text x="${lx}" y="${ly+1.5}" font-size="6.5" fill="#1a2035" text-anchor="middle" font-weight="600" font-family="IBM Plex Mono,monospace">${num}</text>`;
+    }
+  }
+
+  // Start / End
+  s+=circ(START.x,START.y,7,'#2d6a4f','#14532d',1.5);
+  s+=T(START.x,START.y+2,'S',6.5,'#fff','middle','700');
+  s+=circ(END.x,END.y,7,'#c62828','#7f1212',1.5);
+  s+=T(END.x,END.y+2,'E',6.5,'#fff','middle','700');
+  return s;
+}
+
+// ── ORDERS ────────────────────────────────────────────────────────────────────
+const ORDERS_RAW={"235662439820604":{"tag":"MED","items":[{"ic":906165,"qty":1,"loc":"G-13-X","aisle":"G","rank":1527,"zone":"AMB"},{"ic":2446,"qty":1,"loc":"CHL-1-W","aisle":"CHL","rank":2728,"zone":"CHL"},{"ic":1051,"qty":1,"loc":"FNV-16-Z","aisle":"FNV","rank":2910,"zone":"FNV"},{"ic":21739,"qty":1,"loc":"HVL-1-V","aisle":"HVL","rank":3066,"zone":"HD"},{"ic":352880,"qty":1,"loc":"FZR-11-V","aisle":"FZR","rank":3176,"zone":"FZR"},{"ic":68341,"qty":1,"loc":"F-9-V3","aisle":"F","rank":3333,"zone":"AMB"}]},"235557280716075":{"tag":"MED","items":[{"ic":868060,"qty":1,"loc":"D-1-S","aisle":"D","rank":840,"zone":"AMB"},{"ic":35763,"qty":1,"loc":"FZR-9-W","aisle":"FZR","rank":2511,"zone":"FZR"},{"ic":237996,"qty":1,"loc":"CHL-8-V","aisle":"CHL","rank":2783,"zone":"CHL"},{"ic":736728,"qty":1,"loc":"FNV-10-X","aisle":"FNV","rank":2996,"zone":"FNV"},{"ic":52140,"qty":1,"loc":"DBE-2-X","aisle":"DBE","rank":3118,"zone":"HD"}]},"235457359796321":{"tag":"SMALL","items":[{"ic":521463,"qty":1,"loc":"P-2-U","aisle":"P","rank":2685,"zone":"AMB"},{"ic":86726,"qty":1,"loc":"CHL-4-Z","aisle":"CHL","rank":2755,"zone":"CHL"},{"ic":7433,"qty":1,"loc":"FNV-15-V","aisle":"FNV","rank":2939,"zone":"FNV"},{"ic":42609,"qty":1,"loc":"DBE-1-Z","aisle":"DBE","rank":3110,"zone":"HD"}]},"235446549852554":{"tag":"SMALL","items":[{"ic":2793,"qty":1,"loc":"P-3-W","aisle":"P","rank":2654,"zone":"AMB"},{"ic":62952,"qty":1,"loc":"HVL-1-T","aisle":"HVL","rank":3064,"zone":"HD"},{"ic":2641,"qty":1,"loc":"CHL-12-V","aisle":"CHL","rank":3146,"zone":"CHL"}]},"235446973373909":{"tag":"TINY","items":[{"ic":92420,"qty":1,"loc":"E-18-W","aisle":"E","rank":1207,"zone":"AMB"},{"ic":67820,"qty":1,"loc":"FZR-7-U","aisle":"FZR","rank":2493,"zone":"FZR"}]},"236496809391883":{"tag":"XL","items":[{"ic":31256,"qty":1,"loc":"C-15-Y","aisle":"C","rank":516,"zone":"AMB"},{"ic":4192,"qty":1,"loc":"C-13-T","aisle":"C","rank":555,"zone":"AMB"},{"ic":15609,"qty":1,"loc":"C-5-V","aisle":"C","rank":744,"zone":"AMB"},{"ic":40869,"qty":1,"loc":"D-4-Q","aisle":"D","rank":772,"zone":"AMB"},{"ic":21601,"qty":2,"loc":"D-2-Y","aisle":"D","rank":824,"zone":"AMB"},{"ic":749888,"qty":1,"loc":"D-1-Z","aisle":"D","rank":847,"zone":"AMB"},{"ic":347415,"qty":1,"loc":"D-1-Z","aisle":"D","rank":847,"zone":"AMB"},{"ic":35213,"qty":2,"loc":"E-1-Y","aisle":"E","rank":857,"zone":"AMB"},{"ic":290252,"qty":1,"loc":"E-5-X","aisle":"E","rank":944,"zone":"AMB"},{"ic":3462,"qty":1,"loc":"F-8-T","aisle":"F","rank":1006,"zone":"AMB"},{"ic":64716,"qty":1,"loc":"E-10-X","aisle":"E","rank":1065,"zone":"AMB"},{"ic":45314,"qty":1,"loc":"G-15-W","aisle":"G","rank":1482,"zone":"AMB"},{"ic":10090,"qty":1,"loc":"G-14-Z","aisle":"G","rank":1496,"zone":"AMB"},{"ic":70046,"qty":1,"loc":"H-6-Z","aisle":"H","rank":1518,"zone":"AMB"},{"ic":856,"qty":1,"loc":"H-4-V","aisle":"H","rank":1569,"zone":"AMB"},{"ic":97420,"qty":3,"loc":"G-1-Z","aisle":"G","rank":1716,"zone":"AMB"},{"ic":685542,"qty":1,"loc":"O-3-V","aisle":"O","rank":1998,"zone":"AMB"},{"ic":633105,"qty":1,"loc":"N-1-W","aisle":"N","rank":2219,"zone":"AMB"},{"ic":8547,"qty":1,"loc":"CHL-1-X","aisle":"CHL","rank":2729,"zone":"CHL"},{"ic":1095,"qty":1,"loc":"CHL-1-X","aisle":"CHL","rank":2729,"zone":"CHL"},{"ic":130,"qty":1,"loc":"CHL-2-Y","aisle":"CHL","rank":2738,"zone":"CHL"},{"ic":86726,"qty":1,"loc":"CHL-4-Z","aisle":"CHL","rank":2755,"zone":"CHL"},{"ic":52069,"qty":1,"loc":"CHL-9-W","aisle":"CHL","rank":2792,"zone":"CHL"},{"ic":1025,"qty":1,"loc":"CHL-11-Z","aisle":"CHL","rank":2811,"zone":"CHL"},{"ic":11565,"qty":1,"loc":"FNV-19-W","aisle":"FNV","rank":2852,"zone":"FNV"},{"ic":1005,"qty":1,"loc":"FNV-18-U","aisle":"FNV","rank":2861,"zone":"FNV"},{"ic":1047,"qty":1,"loc":"FNV-18-W","aisle":"FNV","rank":2863,"zone":"FNV"},{"ic":1128,"qty":1,"loc":"FNV-17-S","aisle":"FNV","rank":2892,"zone":"FNV"},{"ic":19027,"qty":1,"loc":"FNV-15-Y","aisle":"FNV","rank":2942,"zone":"FNV"},{"ic":1013,"qty":1,"loc":"FNV-14-T","aisle":"FNV","rank":2948,"zone":"FNV"},{"ic":1121,"qty":1,"loc":"FNV-13-Z","aisle":"FNV","rank":2965,"zone":"FNV"},{"ic":2116,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":15514,"qty":1,"loc":"HVD-5-X","aisle":"HVD","rank":3043,"zone":"HD"},{"ic":17389,"qty":1,"loc":"HVD-6-W","aisle":"HVD","rank":3047,"zone":"HD"},{"ic":777,"qty":1,"loc":"DBE-1-V","aisle":"DBE","rank":3106,"zone":"HD"},{"ic":15930,"qty":1,"loc":"FZR-10-T","aisle":"FZR","rank":3164,"zone":"FZR"},{"ic":2368,"qty":1,"loc":"FZR-10-Z","aisle":"FZR","rank":3170,"zone":"FZR"},{"ic":1074,"qty":1,"loc":"FNV-21-U","aisle":"FNV","rank":5016,"zone":"FNV"}]},"235659481246633":{"tag":"XL","items":[{"ic":12515,"qty":1,"loc":"B-9-V","aisle":"B","rank":172,"zone":"AMB"},{"ic":2146,"qty":1,"loc":"B-13-S","aisle":"B","rank":279,"zone":"AMB"},{"ic":288421,"qty":3,"loc":"D-16-Y","aisle":"D","rank":527,"zone":"AMB"},{"ic":41295,"qty":1,"loc":"C-14-W","aisle":"C","rank":547,"zone":"AMB"},{"ic":3241,"qty":1,"loc":"D-3-X","aisle":"D","rank":812,"zone":"AMB"},{"ic":11174,"qty":1,"loc":"E-1-V","aisle":"E","rank":854,"zone":"AMB"},{"ic":21607,"qty":1,"loc":"G-1-Y","aisle":"G","rank":1715,"zone":"AMB"},{"ic":65499,"qty":1,"loc":"FZR-6-Y","aisle":"FZR","rank":2489,"zone":"FZR"},{"ic":2970,"qty":1,"loc":"CHL-1-V","aisle":"CHL","rank":2727,"zone":"CHL"},{"ic":1095,"qty":1,"loc":"CHL-1-X","aisle":"CHL","rank":2729,"zone":"CHL"},{"ic":6274,"qty":1,"loc":"CHL-1-X","aisle":"CHL","rank":2729,"zone":"CHL"},{"ic":4363,"qty":1,"loc":"CHL-10-W","aisle":"CHL","rank":2800,"zone":"CHL"},{"ic":1025,"qty":1,"loc":"CHL-11-Z","aisle":"CHL","rank":2811,"zone":"CHL"},{"ic":3361,"qty":1,"loc":"FNV-1-S","aisle":"FNV","rank":2815,"zone":"FNV"},{"ic":3941,"qty":1,"loc":"FNV-1-U","aisle":"FNV","rank":2817,"zone":"FNV"},{"ic":6496,"qty":1,"loc":"FNV-1-U","aisle":"FNV","rank":2817,"zone":"FNV"},{"ic":818386,"qty":1,"loc":"FNV-1-X","aisle":"FNV","rank":2820,"zone":"FNV"},{"ic":1037,"qty":1,"loc":"FNV-16-X","aisle":"FNV","rank":2908,"zone":"FNV"},{"ic":1051,"qty":1,"loc":"FNV-16-Z","aisle":"FNV","rank":2910,"zone":"FNV"},{"ic":128584,"qty":1,"loc":"FNV-7-Y","aisle":"FNV","rank":2931,"zone":"FNV"},{"ic":19027,"qty":1,"loc":"FNV-15-Y","aisle":"FNV","rank":2942,"zone":"FNV"},{"ic":836288,"qty":1,"loc":"FNV-14-U","aisle":"FNV","rank":2949,"zone":"FNV"},{"ic":320031,"qty":1,"loc":"FNV-14-U","aisle":"FNV","rank":2949,"zone":"FNV"},{"ic":3796,"qty":1,"loc":"FNV-14-V","aisle":"FNV","rank":2950,"zone":"FNV"},{"ic":1284,"qty":1,"loc":"FNV-13-W","aisle":"FNV","rank":2962,"zone":"FNV"},{"ic":1121,"qty":1,"loc":"FNV-13-Z","aisle":"FNV","rank":2965,"zone":"FNV"},{"ic":1108,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":2116,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":715564,"qty":1,"loc":"DBE-1-V","aisle":"DBE","rank":3106,"zone":"HD"}]},"235800001696165":{"tag":"XL","items":[{"ic":63335,"qty":1,"loc":"B-12-V","aisle":"B","rank":249,"zone":"AMB"},{"ic":3275,"qty":1,"loc":"D-16-T","aisle":"D","rank":522,"zone":"AMB"},{"ic":484697,"qty":1,"loc":"C-14-V","aisle":"C","rank":546,"zone":"AMB"},{"ic":15619,"qty":1,"loc":"D-13-Z","aisle":"D","rank":583,"zone":"AMB"},{"ic":2624,"qty":1,"loc":"C-6-T","aisle":"C","rank":709,"zone":"AMB"},{"ic":21612,"qty":1,"loc":"D-7-W","aisle":"D","rank":723,"zone":"AMB"},{"ic":4158,"qty":1,"loc":"D-6-U","aisle":"D","rank":732,"zone":"AMB"},{"ic":15631,"qty":1,"loc":"C-4-U","aisle":"C","rank":754,"zone":"AMB"},{"ic":20021,"qty":1,"loc":"C-3-Y","aisle":"C","rank":791,"zone":"AMB"},{"ic":2620,"qty":1,"loc":"F-1-W","aisle":"F","rank":866,"zone":"AMB"},{"ic":41449,"qty":1,"loc":"E-18-Y","aisle":"E","rank":1209,"zone":"AMB"},{"ic":83826,"qty":1,"loc":"H-10-X","aisle":"H","rank":1428,"zone":"AMB"},{"ic":956438,"qty":1,"loc":"H-7-V","aisle":"H","rank":1503,"zone":"AMB"},{"ic":70046,"qty":1,"loc":"H-6-Z","aisle":"H","rank":1518,"zone":"AMB"},{"ic":21842,"qty":1,"loc":"G-13-Y","aisle":"G","rank":1528,"zone":"AMB"},{"ic":3949,"qty":1,"loc":"G-11-Y","aisle":"G","rank":1561,"zone":"AMB"},{"ic":2662,"qty":1,"loc":"G-3-S","aisle":"G","rank":1687,"zone":"AMB"},{"ic":3276,"qty":1,"loc":"N-1-W","aisle":"N","rank":2219,"zone":"AMB"},{"ic":689,"qty":1,"loc":"CHL-3-W","aisle":"CHL","rank":2744,"zone":"CHL"},{"ic":6843,"qty":1,"loc":"CHL-4-W","aisle":"CHL","rank":2752,"zone":"CHL"},{"ic":1005,"qty":1,"loc":"FNV-18-U","aisle":"FNV","rank":2861,"zone":"FNV"},{"ic":7816,"qty":2,"loc":"FNV-10-W","aisle":"FNV","rank":2995,"zone":"FNV"},{"ic":779,"qty":1,"loc":"DBE-1-Y","aisle":"DBE","rank":3109,"zone":"HD"},{"ic":2344,"qty":1,"loc":"CHL-12-W","aisle":"CHL","rank":3147,"zone":"CHL"},{"ic":2368,"qty":1,"loc":"FZR-10-Z","aisle":"FZR","rank":3170,"zone":"FZR"},{"ic":60317,"qty":1,"loc":"F-7-V3","aisle":"F","rank":3261,"zone":"AMB"},{"ic":50054,"qty":1,"loc":"F-7-Y6","aisle":"F","rank":3282,"zone":"AMB"},{"ic":420236,"qty":1,"loc":"F-10-Z6","aisle":"F","rank":3396,"zone":"AMB"},{"ic":242,"qty":1,"loc":"Z-1-X","aisle":"Z","rank":9007,"zone":"AMB"}]},"236502388700470":{"tag":"XL","items":[{"ic":15195,"qty":2,"loc":"A-5-V","aisle":"A","rank":29,"zone":"AMB"},{"ic":2808,"qty":1,"loc":"B-9-X","aisle":"B","rank":174,"zone":"AMB"},{"ic":2624,"qty":1,"loc":"C-6-T","aisle":"C","rank":709,"zone":"AMB"},{"ic":3241,"qty":1,"loc":"D-3-X","aisle":"D","rank":812,"zone":"AMB"},{"ic":2852,"qty":2,"loc":"D-1-U","aisle":"D","rank":842,"zone":"AMB"},{"ic":15081,"qty":1,"loc":"G-18-X","aisle":"G","rank":1406,"zone":"AMB"},{"ic":668274,"qty":1,"loc":"G-4-V","aisle":"G","rank":1679,"zone":"AMB"},{"ic":6429,"qty":2,"loc":"FZR-7-U","aisle":"FZR","rank":2493,"zone":"FZR"},{"ic":86400,"qty":1,"loc":"FZR-9-W","aisle":"FZR","rank":2511,"zone":"FZR"},{"ic":893,"qty":1,"loc":"Q-6-Y","aisle":"Q","rank":2623,"zone":"AMB"},{"ic":8547,"qty":1,"loc":"CHL-1-X","aisle":"CHL","rank":2729,"zone":"CHL"},{"ic":6483,"qty":1,"loc":"CHL-1-Z","aisle":"CHL","rank":2731,"zone":"CHL"},{"ic":5733,"qty":2,"loc":"FNV-1-T","aisle":"FNV","rank":2816,"zone":"FNV"},{"ic":1027,"qty":1,"loc":"FNV-1-V","aisle":"FNV","rank":2818,"zone":"FNV"},{"ic":1016,"qty":1,"loc":"FNV-16-U","aisle":"FNV","rank":2905,"zone":"FNV"},{"ic":4600,"qty":1,"loc":"FNV-16-U","aisle":"FNV","rank":2905,"zone":"FNV"},{"ic":17050,"qty":1,"loc":"FNV-14-U","aisle":"FNV","rank":2949,"zone":"FNV"},{"ic":1113,"qty":1,"loc":"FNV-13-V","aisle":"FNV","rank":2961,"zone":"FNV"},{"ic":1041,"qty":1,"loc":"FNV-13-X","aisle":"FNV","rank":2963,"zone":"FNV"},{"ic":3795,"qty":1,"loc":"FNV-10-X","aisle":"FNV","rank":2996,"zone":"FNV"},{"ic":752,"qty":1,"loc":"DBE-2-X","aisle":"DBE","rank":3118,"zone":"HD"}]},"236518418188406":{"tag":"XL","items":[{"ic":58771,"qty":1,"loc":"A-20-S","aisle":"A","rank":345,"zone":"AMB"},{"ic":9343,"qty":1,"loc":"C-12-X","aisle":"C","rank":592,"zone":"AMB"},{"ic":76,"qty":1,"loc":"D-8-Z","aisle":"D","rank":693,"zone":"AMB"},{"ic":2907,"qty":1,"loc":"D-6-W","aisle":"D","rank":734,"zone":"AMB"},{"ic":11174,"qty":1,"loc":"E-1-V","aisle":"E","rank":854,"zone":"AMB"},{"ic":638005,"qty":1,"loc":"I-3-V","aisle":"I","rank":1745,"zone":"AMB"},{"ic":714740,"qty":1,"loc":"FZR-1-Y","aisle":"FZR","rank":2449,"zone":"FZR"},{"ic":4658,"qty":1,"loc":"FZR-1-Y","aisle":"FZR","rank":2449,"zone":"FZR"},{"ic":124700,"qty":1,"loc":"FZR-4-W","aisle":"FZR","rank":2471,"zone":"FZR"},{"ic":3568,"qty":1,"loc":"FZR-6-Z","aisle":"FZR","rank":2490,"zone":"FZR"},{"ic":4079,"qty":1,"loc":"CHL-1-V","aisle":"CHL","rank":2727,"zone":"CHL"},{"ic":5936,"qty":1,"loc":"CHL-10-Y","aisle":"CHL","rank":2802,"zone":"CHL"},{"ic":5456,"qty":1,"loc":"CHL-11-W","aisle":"CHL","rank":2808,"zone":"CHL"},{"ic":5733,"qty":1,"loc":"FNV-1-T","aisle":"FNV","rank":2816,"zone":"FNV"},{"ic":1027,"qty":1,"loc":"FNV-1-V","aisle":"FNV","rank":2818,"zone":"FNV"},{"ic":17048,"qty":1,"loc":"FNV-18-U","aisle":"FNV","rank":2861,"zone":"FNV"},{"ic":19027,"qty":1,"loc":"FNV-15-Y","aisle":"FNV","rank":2942,"zone":"FNV"},{"ic":2116,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":1108,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":621247,"qty":1,"loc":"DBE-1-W","aisle":"DBE","rank":3107,"zone":"HD"}]},"235542096365408":{"tag":"XL","items":[{"ic":70347,"qty":1,"loc":"D-12-X","aisle":"D","rank":603,"zone":"AMB"},{"ic":7312,"qty":1,"loc":"D-5-T","aisle":"D","rank":764,"zone":"AMB"},{"ic":2616,"qty":1,"loc":"D-4-S","aisle":"D","rank":774,"zone":"AMB"},{"ic":2615,"qty":1,"loc":"D-4-U","aisle":"D","rank":776,"zone":"AMB"},{"ic":266,"qty":1,"loc":"E-3-V","aisle":"E","rank":898,"zone":"AMB"},{"ic":3091,"qty":1,"loc":"G-5-W","aisle":"G","rank":1669,"zone":"AMB"},{"ic":9315,"qty":1,"loc":"FZR-5-X","aisle":"FZR","rank":2480,"zone":"FZR"},{"ic":8656,"qty":1,"loc":"Q-7-U","aisle":"Q","rank":2586,"zone":"AMB"},{"ic":128,"qty":1,"loc":"CHL-2-Z","aisle":"CHL","rank":2739,"zone":"CHL"},{"ic":12474,"qty":2,"loc":"CHL-10-W","aisle":"CHL","rank":2800,"zone":"CHL"},{"ic":1041,"qty":1,"loc":"FNV-13-X","aisle":"FNV","rank":2963,"zone":"FNV"},{"ic":8284,"qty":1,"loc":"FNV-10-X","aisle":"FNV","rank":2996,"zone":"FNV"},{"ic":3795,"qty":1,"loc":"FNV-10-X","aisle":"FNV","rank":2996,"zone":"FNV"},{"ic":7256,"qty":1,"loc":"DBE-1-Z","aisle":"DBE","rank":3110,"zone":"HD"},{"ic":43685,"qty":1,"loc":"DBE-2-T","aisle":"DBE","rank":3114,"zone":"HD"},{"ic":292337,"qty":1,"loc":"CHL-13-Z","aisle":"CHL","rank":3160,"zone":"CHL"},{"ic":15930,"qty":1,"loc":"FZR-10-T","aisle":"FZR","rank":3164,"zone":"FZR"},{"ic":18917,"qty":1,"loc":"FZR-10-U","aisle":"FZR","rank":3165,"zone":"FZR"}]},"235710422974353":{"tag":"XL","items":[{"ic":126808,"qty":1,"loc":"A-11-S","aisle":"A","rank":147,"zone":"AMB"},{"ic":585934,"qty":1,"loc":"D-12-U","aisle":"D","rank":600,"zone":"AMB"},{"ic":17390,"qty":1,"loc":"D-12-W","aisle":"D","rank":602,"zone":"AMB"},{"ic":15747,"qty":1,"loc":"G-10-T","aisle":"G","rank":1589,"zone":"AMB"},{"ic":91517,"qty":1,"loc":"G-1-V","aisle":"G","rank":1712,"zone":"AMB"},{"ic":62934,"qty":1,"loc":"J-5-X","aisle":"J","rank":1846,"zone":"AMB"},{"ic":1095,"qty":1,"loc":"CHL-1-X","aisle":"CHL","rank":2729,"zone":"CHL"},{"ic":2832,"qty":1,"loc":"CHL-3-X","aisle":"CHL","rank":2745,"zone":"CHL"},{"ic":86726,"qty":1,"loc":"CHL-4-Z","aisle":"CHL","rank":2755,"zone":"CHL"},{"ic":86662,"qty":1,"loc":"CHL-9-V","aisle":"CHL","rank":2791,"zone":"CHL"},{"ic":854514,"qty":1,"loc":"FNV-1-W","aisle":"FNV","rank":2819,"zone":"FNV"},{"ic":1051,"qty":1,"loc":"FNV-16-Z","aisle":"FNV","rank":2910,"zone":"FNV"},{"ic":1041,"qty":1,"loc":"FNV-13-X","aisle":"FNV","rank":2963,"zone":"FNV"},{"ic":1121,"qty":1,"loc":"FNV-13-Z","aisle":"FNV","rank":2965,"zone":"FNV"},{"ic":1131,"qty":1,"loc":"FNV-10-X","aisle":"FNV","rank":2996,"zone":"FNV"},{"ic":659709,"qty":1,"loc":"DBE-3-Z","aisle":"DBE","rank":3130,"zone":"HD"},{"ic":6398,"qty":2,"loc":"CHL-12-Z","aisle":"CHL","rank":3150,"zone":"CHL"},{"ic":2368,"qty":1,"loc":"FZR-10-Z","aisle":"FZR","rank":3170,"zone":"FZR"}]},"236580956154568":{"tag":"XL","items":[{"ic":2814,"qty":1,"loc":"D-10-V","aisle":"D","rank":645,"zone":"AMB"},{"ic":21539,"qty":1,"loc":"L-3-V","aisle":"L","rank":2174,"zone":"AMB"},{"ic":312091,"qty":1,"loc":"FZR-1-Z","aisle":"FZR","rank":2450,"zone":"FZR"},{"ic":176163,"qty":1,"loc":"Q-11-W","aisle":"Q","rank":2522,"zone":"AMB"},{"ic":4601,"qty":1,"loc":"CHL-1-Y","aisle":"CHL","rank":2730,"zone":"CHL"},{"ic":128,"qty":2,"loc":"CHL-2-Z","aisle":"CHL","rank":2739,"zone":"CHL"},{"ic":1027,"qty":1,"loc":"FNV-1-V","aisle":"FNV","rank":2818,"zone":"FNV"},{"ic":99610,"qty":1,"loc":"FNV-1-Y","aisle":"FNV","rank":2821,"zone":"FNV"},{"ic":38914,"qty":1,"loc":"FNV-1-Z","aisle":"FNV","rank":2822,"zone":"FNV"},{"ic":8277,"qty":1,"loc":"FNV-17-W","aisle":"FNV","rank":2896,"zone":"FNV"},{"ic":24381,"qty":1,"loc":"FNV-16-W","aisle":"FNV","rank":2907,"zone":"FNV"},{"ic":1051,"qty":1,"loc":"FNV-16-Z","aisle":"FNV","rank":2910,"zone":"FNV"},{"ic":1108,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":699726,"qty":1,"loc":"DBE-1-U","aisle":"DBE","rank":3105,"zone":"HD"},{"ic":11769,"qty":1,"loc":"DBE-1-W","aisle":"DBE","rank":3107,"zone":"HD"},{"ic":68980,"qty":1,"loc":"DBE-1-W","aisle":"DBE","rank":3107,"zone":"HD"},{"ic":473859,"qty":1,"loc":"DBE-2-U","aisle":"DBE","rank":3115,"zone":"HD"},{"ic":474851,"qty":1,"loc":"DBE-2-X","aisle":"DBE","rank":3118,"zone":"HD"}]},"236609050808537":{"tag":"XL","items":[{"ic":420730,"qty":1,"loc":"B-4-V","aisle":"B","rank":62,"zone":"AMB"},{"ic":670467,"qty":1,"loc":"A-12-X","aisle":"A","rank":196,"zone":"AMB"},{"ic":765437,"qty":1,"loc":"B-12-V","aisle":"B","rank":249,"zone":"AMB"},{"ic":760917,"qty":1,"loc":"D-6-T","aisle":"D","rank":731,"zone":"AMB"},{"ic":6975,"qty":1,"loc":"E-1-S","aisle":"E","rank":851,"zone":"AMB"},{"ic":1527,"qty":1,"loc":"H-10-V","aisle":"H","rank":1426,"zone":"AMB"},{"ic":25139,"qty":1,"loc":"FZR-2-V","aisle":"FZR","rank":2454,"zone":"FZR"},{"ic":457735,"qty":1,"loc":"FZR-7-W","aisle":"FZR","rank":2495,"zone":"FZR"},{"ic":85410,"qty":1,"loc":"P-4-S","aisle":"P","rank":2639,"zone":"AMB"},{"ic":4601,"qty":1,"loc":"CHL-1-Y","aisle":"CHL","rank":2730,"zone":"CHL"},{"ic":8486,"qty":1,"loc":"CHL-2-X","aisle":"CHL","rank":2737,"zone":"CHL"},{"ic":766,"qty":1,"loc":"CHL-4-X","aisle":"CHL","rank":2753,"zone":"CHL"},{"ic":16372,"qty":1,"loc":"FNV-1-Y","aisle":"FNV","rank":2821,"zone":"FNV"},{"ic":4597,"qty":1,"loc":"FNV-15-T","aisle":"FNV","rank":2937,"zone":"FNV"},{"ic":922326,"qty":1,"loc":"DBE-1-U","aisle":"DBE","rank":3105,"zone":"HD"},{"ic":2437,"qty":1,"loc":"CHL-12-V","aisle":"CHL","rank":3146,"zone":"CHL"},{"ic":22387,"qty":1,"loc":"CHL-12-X","aisle":"CHL","rank":3148,"zone":"CHL"},{"ic":5940,"qty":1,"loc":"FZR-11-X","aisle":"FZR","rank":3178,"zone":"FZR"}]},"235658706266149":{"tag":"XL","items":[{"ic":16027,"qty":1,"loc":"A-5-W","aisle":"A","rank":30,"zone":"AMB"},{"ic":13993,"qty":1,"loc":"B-3-W","aisle":"B","rank":41,"zone":"AMB"},{"ic":908,"qty":1,"loc":"B-6-Y","aisle":"B","rank":98,"zone":"AMB"},{"ic":1384,"qty":2,"loc":"A-13-S","aisle":"A","rank":202,"zone":"AMB"},{"ic":25191,"qty":1,"loc":"D-18-V","aisle":"D","rank":480,"zone":"AMB"},{"ic":53729,"qty":1,"loc":"C-12-X","aisle":"C","rank":592,"zone":"AMB"},{"ic":300,"qty":1,"loc":"C-2-T","aisle":"C","rank":797,"zone":"AMB"},{"ic":639844,"qty":1,"loc":"F-19-Z","aisle":"F","rank":1265,"zone":"AMB"},{"ic":15500,"qty":1,"loc":"G-1-S","aisle":"G","rank":1709,"zone":"AMB"},{"ic":82750,"qty":1,"loc":"CHL-7-W","aisle":"CHL","rank":2776,"zone":"CHL"},{"ic":79483,"qty":1,"loc":"CHL-7-W","aisle":"CHL","rank":2776,"zone":"CHL"},{"ic":1037,"qty":1,"loc":"FNV-16-X","aisle":"FNV","rank":2908,"zone":"FNV"},{"ic":1121,"qty":1,"loc":"FNV-13-Z","aisle":"FNV","rank":2965,"zone":"FNV"},{"ic":963138,"qty":1,"loc":"FNV-9-V","aisle":"FNV","rank":2983,"zone":"FNV"},{"ic":2116,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":839630,"qty":1,"loc":"DBE-4-U","aisle":"DBE","rank":3135,"zone":"HD"},{"ic":2368,"qty":1,"loc":"FZR-10-Z","aisle":"FZR","rank":3170,"zone":"FZR"}]},"236062160658209":{"tag":"XL","items":[{"ic":12755,"qty":1,"loc":"A-22-T","aisle":"A","rank":390,"zone":"AMB"},{"ic":693,"qty":1,"loc":"D-1-R","aisle":"D","rank":839,"zone":"AMB"},{"ic":749888,"qty":1,"loc":"D-1-Z","aisle":"D","rank":847,"zone":"AMB"},{"ic":10021,"qty":1,"loc":"H-2-Y","aisle":"H","rank":1616,"zone":"AMB"},{"ic":5445,"qty":1,"loc":"G-2-T","aisle":"G","rank":1699,"zone":"AMB"},{"ic":519140,"qty":1,"loc":"G-1-T","aisle":"G","rank":1710,"zone":"AMB"},{"ic":598770,"qty":1,"loc":"FZR-1-W","aisle":"FZR","rank":2447,"zone":"FZR"},{"ic":209,"qty":1,"loc":"Q-3-W","aisle":"Q","rank":2676,"zone":"AMB"},{"ic":2241,"qty":1,"loc":"CHL-3-U","aisle":"CHL","rank":2742,"zone":"CHL"},{"ic":249647,"qty":1,"loc":"CHL-7-X","aisle":"CHL","rank":2777,"zone":"CHL"},{"ic":482480,"qty":1,"loc":"CHL-8-Y","aisle":"CHL","rank":2786,"zone":"CHL"},{"ic":244463,"qty":1,"loc":"CHL-10-U","aisle":"CHL","rank":2798,"zone":"CHL"},{"ic":1051,"qty":1,"loc":"FNV-16-Z","aisle":"FNV","rank":2910,"zone":"FNV"},{"ic":19027,"qty":1,"loc":"FNV-15-Y","aisle":"FNV","rank":2942,"zone":"FNV"},{"ic":1041,"qty":1,"loc":"FNV-13-X","aisle":"FNV","rank":2963,"zone":"FNV"},{"ic":998119,"qty":1,"loc":"DBE-2-Z","aisle":"DBE","rank":3120,"zone":"HD"},{"ic":18916,"qty":1,"loc":"CHL-12-U","aisle":"CHL","rank":3145,"zone":"CHL"}]},"236616074746376":{"tag":"XL","items":[{"ic":8498,"qty":1,"loc":"A-17-S","aisle":"A","rank":268,"zone":"AMB"},{"ic":1840,"qty":1,"loc":"C-8-W","aisle":"C","rank":668,"zone":"AMB"},{"ic":26990,"qty":1,"loc":"D-2-X","aisle":"D","rank":823,"zone":"AMB"},{"ic":15755,"qty":1,"loc":"C-1-Z","aisle":"C","rank":836,"zone":"AMB"},{"ic":8672,"qty":1,"loc":"E-2-Z","aisle":"E","rank":891,"zone":"AMB"},{"ic":788153,"qty":1,"loc":"G-10-X","aisle":"G","rank":1593,"zone":"AMB"},{"ic":15342,"qty":1,"loc":"FZR-5-X","aisle":"FZR","rank":2480,"zone":"FZR"},{"ic":4601,"qty":1,"loc":"CHL-1-Y","aisle":"CHL","rank":2730,"zone":"CHL"},{"ic":24370,"qty":1,"loc":"CHL-9-Y","aisle":"CHL","rank":2794,"zone":"CHL"},{"ic":746008,"qty":1,"loc":"FNV-1-X","aisle":"FNV","rank":2820,"zone":"FNV"},{"ic":17052,"qty":1,"loc":"FNV-18-U","aisle":"FNV","rank":2861,"zone":"FNV"},{"ic":1037,"qty":1,"loc":"FNV-16-X","aisle":"FNV","rank":2908,"zone":"FNV"},{"ic":6746,"qty":1,"loc":"FNV-14-T","aisle":"FNV","rank":2948,"zone":"FNV"},{"ic":2609,"qty":1,"loc":"FNV-14-Z","aisle":"FNV","rank":2954,"zone":"FNV"},{"ic":16373,"qty":1,"loc":"FNV-13-V","aisle":"FNV","rank":2961,"zone":"FNV"},{"ic":46503,"qty":1,"loc":"DBE-1-V","aisle":"DBE","rank":3106,"zone":"HD"},{"ic":7621,"qty":1,"loc":"FZR-12-W","aisle":"FZR","rank":5130,"zone":"FZR"}]},"235563291057868":{"tag":"XL","items":[{"ic":639464,"qty":1,"loc":"D-13-V","aisle":"D","rank":579,"zone":"AMB"},{"ic":209,"qty":1,"loc":"Q-3-W","aisle":"Q","rank":2676,"zone":"AMB"},{"ic":4601,"qty":1,"loc":"CHL-1-Y","aisle":"CHL","rank":2730,"zone":"CHL"},{"ic":3941,"qty":1,"loc":"FNV-1-U","aisle":"FNV","rank":2817,"zone":"FNV"},{"ic":99610,"qty":1,"loc":"FNV-1-Y","aisle":"FNV","rank":2821,"zone":"FNV"},{"ic":38914,"qty":1,"loc":"FNV-1-Z","aisle":"FNV","rank":2822,"zone":"FNV"},{"ic":1047,"qty":2,"loc":"FNV-18-W","aisle":"FNV","rank":2863,"zone":"FNV"},{"ic":8536,"qty":1,"loc":"FNV-17-V","aisle":"FNV","rank":2895,"zone":"FNV"},{"ic":1051,"qty":1,"loc":"FNV-16-Z","aisle":"FNV","rank":2910,"zone":"FNV"},{"ic":2116,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":15024,"qty":1,"loc":"FNV-11-T","aisle":"FNV","rank":3003,"zone":"FNV"},{"ic":3967,"qty":1,"loc":"FNV-11-X","aisle":"FNV","rank":3007,"zone":"FNV"},{"ic":3726,"qty":1,"loc":"HVD-8-W","aisle":"HVD","rank":3057,"zone":"HD"},{"ic":158499,"qty":2,"loc":"CHL-12-V","aisle":"CHL","rank":3146,"zone":"CHL"},{"ic":14643,"qty":1,"loc":"CHL-12-W","aisle":"CHL","rank":3147,"zone":"CHL"},{"ic":25140,"qty":1,"loc":"FZR-10-T","aisle":"FZR","rank":3164,"zone":"FZR"}]},"235813945643465":{"tag":"XL","items":[{"ic":65613,"qty":1,"loc":"D-13-X","aisle":"D","rank":581,"zone":"AMB"},{"ic":9758,"qty":1,"loc":"D-8-X","aisle":"D","rank":691,"zone":"AMB"},{"ic":40869,"qty":2,"loc":"D-4-Q","aisle":"D","rank":772,"zone":"AMB"},{"ic":809569,"qty":1,"loc":"D-3-T","aisle":"D","rank":808,"zone":"AMB"},{"ic":11174,"qty":1,"loc":"E-1-V","aisle":"E","rank":854,"zone":"AMB"},{"ic":84898,"qty":1,"loc":"G-11-S","aisle":"G","rank":1555,"zone":"AMB"},{"ic":707686,"qty":1,"loc":"G-11-Y","aisle":"G","rank":1561,"zone":"AMB"},{"ic":423201,"qty":2,"loc":"G-5-S","aisle":"G","rank":1665,"zone":"AMB"},{"ic":3948,"qty":1,"loc":"G-4-Q","aisle":"G","rank":1674,"zone":"AMB"},{"ic":39864,"qty":1,"loc":"G-4-R","aisle":"G","rank":1675,"zone":"AMB"},{"ic":10298,"qty":3,"loc":"J-1-V","aisle":"J","rank":1756,"zone":"AMB"},{"ic":1007,"qty":1,"loc":"FNV-18-X","aisle":"FNV","rank":2864,"zone":"FNV"},{"ic":20088,"qty":1,"loc":"DBE-1-T","aisle":"DBE","rank":3104,"zone":"HD"},{"ic":2344,"qty":1,"loc":"CHL-12-W","aisle":"CHL","rank":3147,"zone":"CHL"},{"ic":6398,"qty":1,"loc":"CHL-12-Z","aisle":"CHL","rank":3150,"zone":"CHL"},{"ic":2050,"qty":1,"loc":"FZR-12-Z","aisle":"FZR","rank":5133,"zone":"FZR"}]},"235990620930632":{"tag":"XL","items":[{"ic":11174,"qty":1,"loc":"E-1-V","aisle":"E","rank":854,"zone":"AMB"},{"ic":642,"qty":1,"loc":"P-8-U","aisle":"P","rank":2542,"zone":"AMB"},{"ic":4601,"qty":1,"loc":"CHL-1-Y","aisle":"CHL","rank":2730,"zone":"CHL"},{"ic":206423,"qty":1,"loc":"FNV-1-R","aisle":"FNV","rank":2814,"zone":"FNV"},{"ic":17052,"qty":1,"loc":"FNV-18-U","aisle":"FNV","rank":2861,"zone":"FNV"},{"ic":8688,"qty":1,"loc":"FNV-18-Y","aisle":"FNV","rank":2865,"zone":"FNV"},{"ic":16373,"qty":1,"loc":"FNV-13-V","aisle":"FNV","rank":2961,"zone":"FNV"},{"ic":1284,"qty":1,"loc":"FNV-13-W","aisle":"FNV","rank":2962,"zone":"FNV"},{"ic":1041,"qty":1,"loc":"FNV-13-X","aisle":"FNV","rank":2963,"zone":"FNV"},{"ic":1121,"qty":1,"loc":"FNV-13-Z","aisle":"FNV","rank":2965,"zone":"FNV"},{"ic":2116,"qty":1,"loc":"FNV-10-Y","aisle":"FNV","rank":2997,"zone":"FNV"},{"ic":72522,"qty":1,"loc":"HVD-4-X","aisle":"HVD","rank":3038,"zone":"HD"},{"ic":708,"qty":1,"loc":"DBE-4-Z","aisle":"DBE","rank":3140,"zone":"HD"},{"ic":3918,"qty":2,"loc":"CHL-12-X","aisle":"CHL","rank":3148,"zone":"CHL"},{"ic":555286,"qty":1,"loc":"F-10-V6","aisle":"F","rank":3372,"zone":"AMB"},{"ic":22816,"qty":1,"loc":"FZR-12-Z","aisle":"FZR","rank":5133,"zone":"FZR"}]}};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let selId=null,curResult=null,stepMode=false,activeStep=-1;
+let layers={pick:true,ret:true,opt:false,dots:true,back:false};
+const floorBase=drawFloor();
+
+function renderFloor(){
+  document.getElementById('floorSvg').innerHTML=floorBase+drawPaths(curResult,layers,activeStep);
+}
+
+function effColor(e){return e>=90?'green':e>=70?'blue':e>=55?'orange':'red';}
+
+function renderMetrics(r){
+  if(!r)return;
+  document.getElementById('mDist').textContent=r.totalM;document.getElementById('mDist').className='mval '+effColor(r.eff);
+  document.getElementById('mEff').textContent=r.eff+'%';document.getElementById('mEff').className='mval '+effColor(r.eff);
+  document.getElementById('mTime').textContent=(r.totalS/60).toFixed(1);document.getElementById('mTime').className='mval orange';
+  document.getElementById('mBack').textContent=r.backtracks;document.getElementById('mBack').className='mval '+(r.backtracks>4?'red':'green');
+  const ef=document.getElementById('effFill');
+  ef.style.width=r.eff+'%';ef.style.background=r.eff>=90?'#2d6a4f':r.eff>=70?'#0077b6':'#e85d04';
+  document.getElementById('effLbl').textContent=r.eff+'% vs optimal';
+  document.getElementById('dAct').textContent=r.totalM+'m';
+  document.getElementById('dOpt').textContent=r.optM+'m';
+  document.getElementById('dWst').textContent=(r.totalM-r.optM).toFixed(1)+'m';
+  document.getElementById('distRow').style.display='flex';
+  const wP=Math.round(r.walkS/r.totalS*100),pP=Math.round(r.pickS_t/r.totalS*100),pkP=Math.round(r.packS/r.totalS*100);
+  document.getElementById('timebar').innerHTML=`
+    <div class="trow" style="margin-top:6px"><span>Walk</span><span>${r.walkS}s (${wP}%)</span></div>
+    <div class="ttrack"><div class="tfill" style="width:${wP}%;background:#0077b6"></div></div>
+    <div class="trow"><span>Pick</span><span>${r.pickS_t}s (${pP}%)</span></div>
+    <div class="ttrack"><div class="tfill" style="width:${pP}%;background:#e85d04"></div></div>
+    <div class="trow"><span>Pack</span><span>${r.packS}s (${pkP}%)</span></div>
+    <div class="ttrack"><div class="tfill" style="width:${pkP}%;background:#5e35b1"></div></div>`;
+}
+
+const ZN={AMB:'Ambient',FNV:'FNV',CHL:'Chiller',FZR:'Freezer',HD:'Heavy Duty'};
+
+function renderStops(r,activeStep){
+  if(!r){document.getElementById('stopsList').innerHTML='<div class="empty"><div class="ei">◈</div><div>Select an order → Simulate</div></div>';return;}
+  const n=r.stops.length;
+  let h=r.stops.map((s,i)=>{
+    let cls='stop-item';
+    if(stepMode&&activeStep!==-1){
+      if(i===activeStep-1) cls+=' active-step';
+      else if(i<activeStep-1) cls+=' done-step';
+    }
+    const numCls='snum'+(stepMode&&activeStep!==-1&&i<activeStep-1?' done':'');
+    return`<div class="${cls}" id="stop-${i}">
+      <div class="${numCls}">${i+1}</div>
+      <div class="sbody">
+        <div class="sloc">${s.loc}<span class="zbadge z${s.zone||'AMB'}">${ZN[s.zone]||s.zone}</span></div>
+        <div class="sdet">IC: ${s.ic} · Qty: ${s.qty} · Rank: ${s.rank}</div>
+        <div class="sdist">+${(s.segFt*0.3048).toFixed(1)} m from prev</div>
+      </div>
+    </div>`;
+  }).join('');
+  const retCls='stop-item'+(stepMode&&activeStep>n?' active-step':'');
+  h+=`<div class="${retCls}"><div class="snum ret">↩</div><div class="sbody"><div class="sloc">Return → Pigeon Rack</div><div class="sdist">+${(r.retFt*0.3048).toFixed(1)} m</div></div></div>`;
+  document.getElementById('stopsList').innerHTML=h;
+  // Scroll active step into view
+  if(stepMode&&activeStep>0){
+    const el=document.getElementById(`stop-${activeStep-1}`);
+    if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+}
+
+function updateStepBar(){
+  if(!curResult)return;
+  const n=curResult.stops.length;
+  const bar=document.getElementById('stepBar');
+  bar.classList.toggle('visible',stepMode);
+  if(!stepMode)return;
+  const step=activeStep===-1?n:activeStep;
+  const total=n+1; // +1 for return
+  document.getElementById('stepInfo').textContent=
+    activeStep===-1?`All ${n} steps shown`:
+    activeStep===0?'Start — Packaging Table':
+    activeStep<=n?`Step ${activeStep} / ${n}`:'Return leg';
+  if(activeStep>0&&activeStep<=n){
+    const s=curResult.stops[activeStep-1];
+    document.getElementById('stepDetail').textContent=`${s.loc} · Rank ${s.rank} · ${(s.segFt*0.3048).toFixed(1)}m`;
+  } else if(activeStep===0){
+    document.getElementById('stepDetail').textContent='Picker at Packaging Table';
+  } else {
+    document.getElementById('stepDetail').textContent='Returning to Pigeon Rack';
+  }
+  const pct=activeStep===-1?100:Math.round((Math.max(0,activeStep)/total)*100);
+  document.getElementById('stepProg').style.width=pct+'%';
+}
+
+function stepNav(dir){
+  if(!curResult)return;
+  const n=curResult.stops.length;
+  if(activeStep===-1){activeStep=0;}
+  activeStep=Math.max(0,Math.min(n+1,activeStep+dir));
+  // n+1 = show return leg
+  if(activeStep>n)activeStep=n+1;
+  renderFloor();renderStops(curResult,activeStep);updateStepBar();
+}
+
+function stepReset(){
+  activeStep=0;renderFloor();renderStops(curResult,activeStep);updateStepBar();
+}
+
+function toggleStepMode(){
+  stepMode=!stepMode;
+  const el=document.getElementById('togStep');
+  el.classList.toggle('on-b',stepMode);
+  if(stepMode&&curResult){activeStep=0;}
+  else{activeStep=-1;}
+  renderFloor();renderStops(curResult,activeStep);updateStepBar();
+}
+
+function toggleLayer(key,cls,el){
+  layers[key]=!layers[key];
+  el.classList.toggle(cls,layers[key]);
+  if(curResult)renderFloor();
+}
+
+function buildList(){
+  document.getElementById('ordersList').innerHTML=Object.keys(ORDERS_RAW).map((oid,i)=>{
+    const o=ORDERS_RAW[oid];
+    const zones=[...new Set(o.items.map(x=>x.zone))];
+    const zHtml=zones.map(z=>`<span class="zbadge z${z}" style="font-size:7px">${z}</span>`).join('');
+    const rawCount=o.rawCount||o.items.length;
+    return`<div class="ocard" onclick="selectOrder('${oid}',${i})">
+      <div class="oid">…${oid.slice(-10)}</div>
+      <div class="ometa">
+        <span class="tag t${o.tag}">${o.tag}</span>
+        <span class="tx">${o.items.length} items</span>
+        ${zHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectOrder(oid,idx){
+  selId=oid;activeStep=-1;stepMode=false;
+  document.getElementById('togStep').classList.remove('on-b');
+  document.querySelectorAll('.ocard').forEach((c,i)=>c.classList.toggle('active',i===idx));
+  curResult=null;renderFloor();renderStops(null,-1);
+  ['mDist','mEff','mTime','mBack'].forEach(id=>{document.getElementById(id).textContent='—';document.getElementById(id).className='mval';});
+  document.getElementById('effFill').style.width='0%';document.getElementById('effLbl').textContent='—';
+  document.getElementById('distRow').style.display='none';document.getElementById('timebar').innerHTML='';
+  document.getElementById('stepBar').classList.remove('visible');
+}
+
+function getP(){return{speed:+document.getElementById('spdR').value,pick:+document.getElementById('pckR').value,pack:+document.getElementById('pakR').value};}
+
+document.getElementById('simBtn').addEventListener('click',()=>{
+  if(!selId)return;
+  const p=getP();
+  curResult=routeOrder(ORDERS_RAW[selId].items,p.speed,p.pick,p.pack);
+  activeStep=-1;
+  renderFloor();renderMetrics(curResult);renderStops(curResult,-1);
+  document.getElementById('stepBar').classList.remove('visible');
+});
+
+['spdR','pckR','pakR'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',()=>{
+    document.getElementById(id.replace('R','V')).textContent=document.getElementById(id).value;
+    if(curResult&&selId){const p=getP();curResult=routeOrder(ORDERS_RAW[selId].items,p.speed,p.pick,p.pack);renderMetrics(curResult);}
+  });
+});
+
+buildList();renderFloor();
+</script>
+</body>
+</html>
